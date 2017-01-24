@@ -147,6 +147,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\wrapper.c" />
+    <ClCompile Include="intro.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\wrapper.h" />

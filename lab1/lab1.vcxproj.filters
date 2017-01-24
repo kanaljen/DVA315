@@ -18,6 +18,9 @@
     <ClCompile Include="..\wrapper.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="intro.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\wrapper.h">
