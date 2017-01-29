@@ -72,7 +72,7 @@ int mailslotWrite(HANDLE mailSlot, void *msg, int msgSize) {
 		CloseHandle(mutex);
 		return 0;
 	}
-	printf("%d bytes written to slot.\n",bytesWritten);
+
 	ReleaseMutex(mutex);
 	CloseHandle(mutex);
 	return bytesWritten;

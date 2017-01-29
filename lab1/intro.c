@@ -5,6 +5,11 @@
 HANDLE mailSlot;
 INT shutdownFlag = 0;
 
+struct mailStruct{
+	char*  head;
+	char*  body;
+};
+
 DWORD WINAPI helloWorld(LPVOID rep);
 DWORD WINAPI helloMoon(LPVOID rep);
 DWORD WINAPI mailServer(char* name);
@@ -20,6 +25,7 @@ int main() {
 	while (scanf_s("%9s", name, 10) != 1);
 	while ((c = getchar()) != '\n' && c != EOF) {}
 	
+
 	//Create event-objects for multithread sync
 	if (CreateEvent(NULL, 0, 0, "YouGotMail") == INVALID_HANDLE_VALUE)printf("YouGotMail-event error: %d", GetLastError);
 	if (CreateEvent(NULL, 0, 0, "msgRead") == INVALID_HANDLE_VALUE)printf("msgRead-event error: %d", GetLastError);
@@ -48,13 +54,13 @@ int main() {
 	//Exit program
 	Sleep(500);
 	mailslotClose(mailSlot);
-	printf("Mailslot Terminated...\n");
+	printf("\nMailslot Terminated...\n");
 	Sleep(500);
 	for (size_t i = 0; i < 3; i++)
 	{
 		CloseHandle(threadHandles[i]);
 	}
-	printf("Thread-handles closed...\n");
+	printf("Thread-handles closed...\n\n");
 	printf("Press any key to exit...");
 	getchar();
 	
@@ -167,19 +173,30 @@ DWORD WINAPI inputClient(char* name) {
 
 	HANDLE msgreadEventH = OpenEvent(EVENT_ALL_ACCESS, 0, "msgRead");
 
-	//Memory for msg
-	char msg[256];
+	struct mailStruct *msg = (struct mailStruct*)malloc(sizeof(struct mailStruct)); //POINTER TO MSG-STRUCT
+	msg->head = malloc(sizeof(char) * 20); //Memory for head of msg
+	msg->body = malloc(sizeof(char) * 50); //Memory for body of msg
 	int bwritten;
+	
 	printf("Input-client started...\n");
+	
+	
 	//SEND MSG PROMPT, INPUT-LOOP
 	while(1){
-		printf("Input-Client:");
-		gets(msg);
-		if (strcmp(msg, "END") == 0)break;
-		bwritten = mailslotWrite(fileHandle, msg, strlen(msg));
+
+		printf("\n(IC) Message head: ");
+		gets_s(msg->head,20);
+		if (strcmp(msg->head, "END") == 0)break;
+		printf("(IC) Message body: ");
+		gets_s(msg->body, 50);
+		bwritten = mailslotWrite(fileHandle, msg->head, strlen(msg->head));
+		bwritten = bwritten + mailslotWrite(fileHandle, msg->body, strlen(msg->body));
+		printf("(IC) %d bytes written to slot.\n", bwritten);
 		WaitForSingleObject(msgreadEventH,INFINITE);
 	}
-
+	free(msg->head);
+	free(msg->body);
+	free(msg);
 	shutdownFlag = 1; //SIGNAL THREAD SHUTDOWN
 	CloseHandle(msgreadEventH);
 	return 0;
@@ -187,12 +204,16 @@ DWORD WINAPI inputClient(char* name) {
 
 DWORD WINAPI outputClient(char* name) {
 
-	char* msg = NULL; //POINTER TO MESSEGE-STRING
+	struct mailStruct *msg = (struct mailStruct*)malloc(sizeof(struct mailStruct)); //POINTER TO MSG-STRUCT
+	msg->head = (char*)malloc(sizeof(char) * 20); //Memory for head of msg
+	msg->body = (char*)malloc(sizeof(char) * 50); //Memory for body of msg
+
 	HANDLE recivedEventH = OpenEvent(EVENT_ALL_ACCESS, 0, "YouGotMail"); //HANDLE FOR EVENT TO ACTIVATE OCLIENT
 	HANDLE msgreadEventH = OpenEvent(EVENT_ALL_ACCESS, 0, "msgRead"); 
 	HANDLE startupEventH = OpenEvent(EVENT_ALL_ACCESS, 0, "serverStartup");
 	
-	int msgSize = 0; 
+	int msgSize = 0;
+	int bread = 0;
 	printf("Output-client started...\n");
 	SetEvent(startupEventH);
 	CloseHandle(startupEventH);
@@ -204,14 +225,20 @@ DWORD WINAPI outputClient(char* name) {
 		if (shutdownFlag == 1)break; //GLOBAL SHUTDOWN SIGNAL
 
 		GetMailslotInfo(mailSlot, 0, &msgSize, 0, 0); //RETRIVE SIZE OF MSG
-
-		msg = malloc(msgSize + 1);
-		printf("%d bytes read from slot.\n", mailslotRead(mailSlot, msg, msgSize));
-		msg[msgSize] = '\0'; //TO CLEANUP OUTPUT
-		printf("Output-Client: %s\n", msg);
+		bread = mailslotRead(mailSlot, msg->head, msgSize);
+		msg->head[msgSize] = '\0';
+		GetMailslotInfo(mailSlot, 0, &msgSize, 0, 0);
+		bread = bread + mailslotRead(mailSlot, msg->body, msgSize);
+		msg->body[msgSize] = '\0';
+		printf("\n(UC) Message head: %s", msg->head);
+		printf("\n(UC) Message body: %s\n", msg->body);
+		printf("(UC) %d read from slot.\n", bread);
 		SetEvent(msgreadEventH);
-		free(msg);
+
 	}
+	free(msg->head);
+	free(msg->body);
+	free(msg);
 	CloseHandle(recivedEventH);
 	CloseHandle(msgreadEventH);
 	return 0;
