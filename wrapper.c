@@ -13,7 +13,7 @@
 DWORD threadCreate (LPTHREAD_START_ROUTINE threadFunc, LPVOID threadParams) {
 
 	/* Creates a thread running threadFunc */
-	HANDLE mutex = CreateMutex(NULL,0, NULL);
+	HANDLE mutex = CreateMutex(NULL,0, "threadCreateMutex");
 	WaitForSingleObject(mutex,INFINITE);
 	DWORD myThreadID;
 	if (CreateThread(0, 0, threadFunc, threadParams, 0, &myThreadID) == INVALID_HANDLE_VALUE) printf("threadCreate error: %d\n", GetLastError);
@@ -29,7 +29,7 @@ HANDLE mailslotCreate (char *name) {
 	/* Creates a mailslot with the specified name and returns the handle */
 	char pathName[100];
 	sprintf_s(&pathName[0], 100, "\\\\.\\mailslot\\%s", name);
-	HANDLE mutex = CreateMutex(NULL, 0, NULL);
+	HANDLE mutex = CreateMutex(NULL, 0, "mailslotCreateMutex");
 	WaitForSingleObject(mutex, INFINITE);
 	HANDLE mailH = CreateMailslot(pathName, 0, TIME_OUT, NULL);
 	if (mailH == INVALID_HANDLE_VALUE)printf("mailCreate error: %d\n", GetLastError);
@@ -46,7 +46,7 @@ HANDLE mailslotConnect (char * name) {
 	char pathName[100];
 	sprintf_s(&pathName[0], 100, "\\\\.\\mailslot\\%s", name);
 
-	HANDLE mutex = CreateMutex(NULL, 0, NULL);
+	HANDLE mutex = CreateMutex(NULL, 0, "mailslotCreateMutex");
 	WaitForSingleObject(mutex, INFINITE);
 	HANDLE fileH = CreateFile(pathName,GENERIC_ALL,FILE_SHARE_READ,0,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,0);
 	if (fileH == INVALID_HANDLE_VALUE)printf("mailslotConnect error: %d\n", GetLastError);
@@ -60,7 +60,7 @@ HANDLE mailslotConnect (char * name) {
 int mailslotWrite(HANDLE mailSlot, void *msg, int msgSize) {
 
 	/* Write a msg to a mailslot, return nr */
-	HANDLE mutex = CreateMutex(NULL, 0, NULL);
+	HANDLE mutex = CreateMutex(NULL, 0, "mailslotWriteMutex");
 	WaitForSingleObject(mutex, INFINITE);
 	DWORD bytesWritten;
 	BOOL fResult;
@@ -83,7 +83,7 @@ int mailslotWrite(HANDLE mailSlot, void *msg, int msgSize) {
 int	mailslotRead (HANDLE mailbox, void *msg, int msgSize) {
 
 	/* Read a msg from a mailslot, return nr */
-	HANDLE mutex = CreateMutex(NULL, 0, NULL);
+	HANDLE mutex = CreateMutex(NULL, 0, "mailslotReadMutex");
 	WaitForSingleObject(mutex, INFINITE);
 	int bytesRead = 0;
 	ReadFile(mailbox, msg, msgSize, &bytesRead, NULL);
@@ -96,7 +96,7 @@ int	mailslotRead (HANDLE mailbox, void *msg, int msgSize) {
 int mailslotClose(HANDLE mailSlot){
 	
 	/* close a mailslot, returning whatever the service call returns */
-	HANDLE mutex = CreateMutex(NULL, 0, NULL);
+	HANDLE mutex = CreateMutex(NULL, 0, "mailsotCloseMutex");
 	WaitForSingleObject(mutex, INFINITE);
 	if (CloseHandle(mailSlot) == 0)printf("mailslotClose error: %d\n",GetLastError());
 	ReleaseMutex(mutex);
