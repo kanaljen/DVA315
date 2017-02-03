@@ -147,7 +147,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\lab2_client\client.c" />
     <ClCompile Include="..\wrapper.c" />
   </ItemGroup>
   <ItemGroup>

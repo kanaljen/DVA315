@@ -18,7 +18,7 @@
     <ClCompile Include="..\wrapper.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\lab2_client\client.c">
+    <ClCompile Include="server.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
