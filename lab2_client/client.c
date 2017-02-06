@@ -11,20 +11,21 @@
 #include <stdio.h>
 #include <windows.h>
 #include <string.h>
-#include "wrapper.h"
+#include "../wrapper.h"
 
 #define MESSAGE "Hello!"
 
 void main(void) {
-
+	getchar();
 	HANDLE mailSlot;
 	DWORD bytesWritten;
 	int loops = 2000;
 
-	mailSlot = mailslotConnect("mailbox"); 
+	mailSlot = mailslotConnect("serverbox"); 
 
 	if (mailSlot == INVALID_HANDLE_VALUE) {
 		printf("Failed to get a handle to the mailslot!!\nHave you started the server?\n");
+		getchar();
 		return;
 	}
 
@@ -47,5 +48,6 @@ void main(void) {
 					/* (sleep for a while, enables you to catch a glimpse of what the */
 					/*  client prints on the console)                                 */
 	Sleep(2000);
+	getchar();
 	return;
 }

@@ -46,9 +46,9 @@ HANDLE mailslotConnect (char * name) {
 	char pathName[100];
 	sprintf_s(&pathName[0], 100, "\\\\.\\mailslot\\%s", name);
 
-	HANDLE mutex = CreateMutex(NULL, 0, "mailslotCreateMutex");
+	HANDLE mutex = CreateMutex(NULL, 0, "mailslotConnectMutex");
 	WaitForSingleObject(mutex, INFINITE);
-	HANDLE fileH = CreateFile(pathName,GENERIC_ALL,FILE_SHARE_READ,0,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,0);
+	HANDLE fileH = CreateFile(pathName,(GENERIC_READ | GENERIC_WRITE),FILE_SHARE_READ,0,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,0);
 	if (fileH == INVALID_HANDLE_VALUE)printf("mailslotConnect error: %d\n", GetLastError);
 	else printf("Connected to '%s'...\n",name);
 	ReleaseMutex(mutex);

@@ -20,7 +20,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
-#include "wrapper.h"
+#include "../wrapper.h"
 
 							/* the server uses a timer to periodically update the presentation window */
 							/* here is the timer id and timer period defined                          */
@@ -120,7 +120,7 @@ DWORD WINAPI mailThread(LPVOID arg) {
 							/* NOTE: The name of a mailslot must start with "\\\\.\\mailslot\\"  */
 
 	
-	mailbox = mailslotCreate ("mailbox");
+	mailbox = mailslotCreate ("serverbox");
 
 
 	for(;;) {				

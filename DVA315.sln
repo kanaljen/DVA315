@@ -6,6 +6,9 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lab1", "lab1\lab1.vcxproj", "{6D81382B-5C2F-46D2-A835-5C36D80D2199}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lab2_client", "lab2\lab2.vcxproj", "{6608E547-AD49-41C2-9370-6411385B165D}"
+	ProjectSection(ProjectDependencies) = postProject
+		{200D2E8A-E2E7-44DA-B12D-C4F918906B61} = {200D2E8A-E2E7-44DA-B12D-C4F918906B61}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lab2_server", "lab2_server\lab2_server.vcxproj", "{200D2E8A-E2E7-44DA-B12D-C4F918906B61}"
 EndProject
