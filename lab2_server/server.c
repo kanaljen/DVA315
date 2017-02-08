@@ -114,34 +114,21 @@ DWORD WINAPI mailThread(LPVOID arg) {
 	DWORD bytesRead;
 	static int posY = 0;
 	HANDLE mailbox;
-
-							/* create a mailslot that clients can use to pass requests through   */
-							/* (the clients use the name below to get contact with the mailslot) */
-							/* NOTE: The name of a mailslot must start with "\\\\.\\mailslot\\"  */
-
+	mailbox = mailslotCreate ("server");
 	
-	mailbox = mailslotCreate ("serverbox");
-
-
-	for(;;) {				
-							/* (ordinary file manipulating functions are used to read from mailslots) */
-							/* in this example the server receives strings from the client side and   */
-							/* displays them in the presentation window                               */
-							/* NOTE: binary data can also be sent and received, e.g. planet structures*/
- 
-	bytesRead = mailslotRead (mailbox, buffer, strlen(buffer)); 
-
-	if(bytesRead!= 0) {
+	while(TRUE) {
+		bytesRead = mailslotRead (mailbox, buffer, strlen(buffer)); 
+		if(bytesRead!= 0) {
 							/* NOTE: It is appropriate to replace this code with something */
 							/*       that match your needs here.                           */
-		posY++;  
+			posY++;  
 							/* (hDC is used reference the previously created window) */							
-		TextOut(hDC, 10, 50+posY%200, buffer, bytesRead);
-	}
-	else {
+			TextOut(hDC, 10, 50+posY%200, buffer, bytesRead);
+		}
+		else {
 							/* failed reading from mailslot                              */
 							/* (in this example we ignore this, and happily continue...) */
-    }
+		}
   }
 
   return 0;

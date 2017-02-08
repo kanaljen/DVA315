@@ -148,9 +148,11 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\lab2_client\client.c" />
+    <ClCompile Include="..\staffan.c" />
     <ClCompile Include="..\wrapper.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\staffan.h" />
     <ClInclude Include="..\wrapper.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

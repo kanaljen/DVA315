@@ -12,42 +12,57 @@
 #include <windows.h>
 #include <string.h>
 #include "../wrapper.h"
+#include "../staffan.h"
 
 #define MESSAGE "Hello!"
 
+DWORD WINAPI mailThread();
+
 void main(void) {
-	getchar();
-	HANDLE mailSlot;
-	DWORD bytesWritten;
-	int loops = 2000;
 
-	mailSlot = mailslotConnect("serverbox"); 
 
-	if (mailSlot == INVALID_HANDLE_VALUE) {
-		printf("Failed to get a handle to the mailslot!!\nHave you started the server?\n");
+	DWORD mailThreadID = threadCreate(mailThread,NULL);
+	HANDLE mailThread = OpenThread(THREAD_ALL_ACCESS,0,mailThreadID);
+	
+	Sleep(2000);
+	HANDLE serverMailSlot = mailslotConnect("server");
+	if (serverMailSlot == INVALID_HANDLE_VALUE) {
+		printf("Failed to connect to the server-mailslot!\n");
 		getchar();
 		return;
 	}
 
-						/* NOTE: replace code below for sending planet data to the server. */
-	while(loops-- > 0) {
-						/* send a friendly greeting to the server */
-					/* NOTE: The messages sent to the server need not to be of equal size.       */
-					/* Messages can be of different sizes as long as they don't exceed the       */
-					/* maximum message size that the mailslot can handle (defined upon creation).*/
-    
-		bytesWritten = mailslotWrite (mailSlot, MESSAGE, strlen(MESSAGE));
-		if (bytesWritten!=-1)
-			printf("data sent to server (bytes = %d)\n", bytesWritten);
-		else
-			printf("failed sending data to server\n");
-	}
 
-	mailslotClose (mailSlot);
+	//INPUT LOOP
+	DWORD bytesWritten;
+	char c;
+	do {
+		bytesWritten = mailslotWrite(serverMailSlot, MESSAGE, strlen(MESSAGE));
+		if (bytesWritten != -1)printf("data sent to server (bytes = %d)\n", bytesWritten);
+		else printf("failed sending data to server\n");
+		printf("Press any key to create another planet, press 'n' to quit!\n");
+		c = getchar();
+		flushInput();
+	} while (c != 'n');
+	//END LOOP
 
-					/* (sleep for a while, enables you to catch a glimpse of what the */
-					/*  client prints on the console)                                 */
-	Sleep(2000);
-	getchar();
+	WaitForSingleObject(mailThread, INFINITE); //Wait for mailthread to close
+	mailslotClose (serverMailSlot); //close connection to mailslot
 	return;
 }
+
+DWORD WINAPI mailThread()
+{
+	char processID[10];
+	sprintf_s(processID, 10, "%d", GetCurrentProcessId()); //Convert ProcessID int to char
+	HANDLE mailSlot = mailslotCreate(processID);
+	if (mailSlot == INVALID_HANDLE_VALUE) {
+		printf("Failed to get create client mailslot!\n");
+		getchar();
+		return;
+	}
+	//END Start client-mailslot
+	while (1);
+	return 0;
+}
+
