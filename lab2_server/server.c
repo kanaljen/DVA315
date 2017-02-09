@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <math.h>
 #include "../wrapper.h"
+#include "../staffan.h"
 
 							/* the server uses a timer to periodically update the presentation window */
 							/* here is the timer id and timer period defined                          */
@@ -38,7 +39,7 @@
 /**************************************************************/
 
 LRESULT WINAPI MainWndProc( HWND, UINT, WPARAM, LPARAM );
-DWORD WINAPI mailThread(LPVOID);
+DWORD WINAPI mailThread(LPARAM);
 
 
 
@@ -89,7 +90,7 @@ int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdL
 							/* We have no parameters to pass, hence NULL				*/
   
 
-	threadID = threadCreate (mailThread, NULL); 
+	threadID = threadCreate (mailThread,NULL); 
   
 
 							/* (the message processing loop that all windows applications must have) */
@@ -108,14 +109,17 @@ int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdL
 * Purpose: Handle incoming requests from clients                     *
 * NOTE: This function is important to you.                           *
 /********************************************************************/
-DWORD WINAPI mailThread(LPVOID arg) {
+DWORD WINAPI mailThread(LPARAM arg) {
 
 	char buffer[1024];
 	DWORD bytesRead;
 	static int posY = 0;
 	HANDLE mailbox;
 	mailbox = mailslotCreate ("server");
-	
+
+	HANDLE startup = CreateEvent(NULL, 0, 0, "startup");
+	SetEvent(startup);
+
 	while(TRUE) {
 		bytesRead = mailslotRead (mailbox, buffer, strlen(buffer)); 
 		if(bytesRead!= 0) {

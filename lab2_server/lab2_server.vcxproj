@@ -146,10 +146,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\staffan.c" />
     <ClCompile Include="..\wrapper.c" />
     <ClCompile Include="server.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\staffan.h" />
     <ClInclude Include="..\wrapper.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -20,11 +20,12 @@ DWORD WINAPI mailThread();
 
 void main(void) {
 
+	HANDLE startup = CreateEvent(NULL,0,0,"startup");
 
 	DWORD mailThreadID = threadCreate(mailThread,NULL);
 	HANDLE mailThread = OpenThread(THREAD_ALL_ACCESS,0,mailThreadID);
-	
-	Sleep(2000);
+	WaitForSingleObject(startup, INFINITE);
+
 	HANDLE serverMailSlot = mailslotConnect("server");
 	if (serverMailSlot == INVALID_HANDLE_VALUE) {
 		printf("Failed to connect to the server-mailslot!\n");
@@ -32,6 +33,7 @@ void main(void) {
 		return;
 	}
 
+	
 
 	//INPUT LOOP
 	DWORD bytesWritten;
@@ -46,7 +48,8 @@ void main(void) {
 	} while (c != 'n');
 	//END LOOP
 
-	WaitForSingleObject(mailThread, INFINITE); //Wait for mailthread to close
+	TerminateThread(mailThread,NULL); //Send kill signal to mail-thread
+	WaitForSingleObject(mailThread, INFINITE); //Wait for mail-thread to close
 	mailslotClose (serverMailSlot); //close connection to mailslot
 	return;
 }
@@ -62,7 +65,9 @@ DWORD WINAPI mailThread()
 		return;
 	}
 	//END Start client-mailslot
-	while (1);
+	while (TRUE) {
+	
+	};
 	return 0;
 }
 
