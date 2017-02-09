@@ -65,8 +65,17 @@ DWORD WINAPI mailThread()
 		return;
 	}
 	//END Start client-mailslot
+
+	int msgSize;
+	char msg[1024];
+	int bytesRead;
 	while (TRUE) {
-	
+		GetMailslotInfo(mailSlot, 0, &msgSize, 0, 0); //RETRIVE SIZE OF MSG
+		if (msgSize > 0) {
+			bytesRead = mailslotRead(mailSlot, msg, msgSize);
+			printf("%s",msg);
+		}
+		Sleep(200);
 	};
 	return 0;
 }
