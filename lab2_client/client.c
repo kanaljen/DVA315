@@ -14,7 +14,6 @@
 #include "../wrapper.h"
 #include "../staffan.h"
 
-#define MESSAGE "Hello!"
 
 DWORD WINAPI mailThread();
 
@@ -26,26 +25,27 @@ void main(void) {
 	HANDLE mailThread = OpenThread(THREAD_ALL_ACCESS,0,mailThreadID);
 	WaitForSingleObject(startup, INFINITE);
 
-	HANDLE serverMailSlot = mailslotConnect("server");
-	if (serverMailSlot == INVALID_HANDLE_VALUE) {
-		printf("Failed to connect to the server-mailslot!\n");
-		getchar();
-		return;
-	}
-
-	
+	HANDLE serverMailSlot = connectToServerMailslot();
 
 	//INPUT LOOP
 	DWORD bytesWritten;
-	char c;
+	planet_type* newPlanet = (planet_type*)malloc(sizeof(planet_type));
 	do {
-		bytesWritten = mailslotWrite(serverMailSlot, MESSAGE, strlen(MESSAGE));
-		if (bytesWritten != -1)printf("data sent to server (bytes = %d)\n", bytesWritten);
-		else printf("failed sending data to server\n");
-		printf("Press any key to create another planet, press 'n' to quit!\n");
-		c = getchar();
-		flushInput();
-	} while (c != 'n');
+		printf("\n[INPUT] Name of new planet: ");
+		gets_s(newPlanet->name, 20);
+		newPlanet->life = 20;
+		newPlanet->mass = 10;
+		newPlanet->next = NULL;
+		sprintf_s(newPlanet->pid, 10, "%d", GetCurrentProcessId());
+		newPlanet->sx = 50;
+		newPlanet->sy = 50;
+		newPlanet->vx = 0;
+		newPlanet->vy = 0;
+		bytesWritten = mailslotWrite(serverMailSlot, newPlanet, sizeof(planet_type));
+		if (bytesWritten != -1)printf("\nData sent to server (bytes = %d)\n", bytesWritten);
+		else printf("\nFailed sending data to server\n");
+		Sleep(500);
+	} while (TRUE);
 	//END LOOP
 
 	TerminateThread(mailThread,NULL); //Send kill signal to mail-thread
@@ -60,7 +60,7 @@ DWORD WINAPI mailThread()
 	sprintf_s(processID, 10, "%d", GetCurrentProcessId()); //Convert ProcessID int to char
 	HANDLE mailSlot = mailslotCreate(processID);
 	if (mailSlot == INVALID_HANDLE_VALUE) {
-		printf("Failed to get create client mailslot!\n");
+		printf("\nFailed to get create client mailslot!\n");
 		getchar();
 		return;
 	}
@@ -68,12 +68,12 @@ DWORD WINAPI mailThread()
 
 	int msgSize;
 	char msg[1024];
-	int bytesRead;
 	while (TRUE) {
 		GetMailslotInfo(mailSlot, 0, &msgSize, 0, 0); //RETRIVE SIZE OF MSG
 		if (msgSize > 0) {
-			bytesRead = mailslotRead(mailSlot, msg, msgSize);
-			printf("%s",msg);
+			mailslotRead(mailSlot, msg, msgSize);
+			msg[msgSize] = '\0';
+			printf("\n%s",msg);
 		}
 		Sleep(200);
 	};

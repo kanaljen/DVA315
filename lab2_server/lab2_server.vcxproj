@@ -148,11 +148,13 @@
   <ItemGroup>
     <ClCompile Include="..\staffan.c" />
     <ClCompile Include="..\wrapper.c" />
+    <ClCompile Include="database.c" />
     <ClCompile Include="server.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\staffan.h" />
     <ClInclude Include="..\wrapper.h" />
+    <ClInclude Include="database.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
