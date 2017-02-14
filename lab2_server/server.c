@@ -28,6 +28,8 @@
 							/* here is the timer id and timer period defined                          */
 
 #define UPDATE_FREQ     10	/* update frequency (in ms) for the timer */
+#define G 0.0000000000667259
+
 
 							/* (the server uses a mailslot for incoming client requests) */
 
@@ -41,7 +43,7 @@
 
 LRESULT WINAPI MainWndProc( HWND, UINT, WPARAM, LPARAM );
 DWORD WINAPI mailThread(LPARAM);
-void WINAPI planetFunc(planet_type* planetData);
+void WINAPI planetFunc(planet_type* planet);
 
 
 planet_type* planetDatabase = NULL;
@@ -65,43 +67,43 @@ HDC hDC;		/* Handle to Device Context, gets set 1st time in MainWndProc */
 							/*       initializes a bunch of things.                     */
 							/* NOTE: In windows WinMain is the start function, not main */
 
-int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdLine, int nCmdShow ) {
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdLine, int nCmdShow) {
 
 	HWND hWnd;
 	DWORD threadID;
 	MSG msg;
-	
 
-							/* Create the window, 3 last parameters important */
-							/* The tile of the window, the callback function */
-							/* and the backgrond color */
 
-	hWnd = windowCreate (hPrevInstance, hInstance, nCmdShow, "Server", MainWndProc,10);
+	/* Create the window, 3 last parameters important */
+	/* The tile of the window, the callback function */
+	/* and the backgrond color */
 
-							/* start the timer for the periodic update of the window    */
-							/* (this is a one-shot timer, which means that it has to be */
-							/* re-set after each time-out) */
-							/* NOTE: When this timer expires a message will be sent to  */
-							/*       our callback function (MainWndProc).               */
-  
-	windowRefreshTimer (hWnd, UPDATE_FREQ);
-  
+	hWnd = windowCreate(hPrevInstance, hInstance, nCmdShow, "Himmel", MainWndProc, COLOR_WINDOW + 1);
 
-							/* create a thread that can handle incoming client requests */
-							/* (the thread starts executing in the function mailThread) */
-							/* NOTE: See online help for details, you need to know how  */ 
-							/*       this function does and what its parameters mean.   */
-							/* We have no parameters to pass, hence NULL				*/
-  
+	/* start the timer for the periodic update of the window    */
+	/* (this is a one-shot timer, which means that it has to be */
+	/* re-set after each time-out) */
+	/* NOTE: When this timer expires a message will be sent to  */
+	/*       our callback function (MainWndProc).               */
 
-	threadID = threadCreate (mailThread,NULL); 
-  
+	windowRefreshTimer(hWnd, UPDATE_FREQ);
 
-							/* (the message processing loop that all windows applications must have) */
-							/* NOTE: just leave it as it is. */
-	while( GetMessage( &msg, NULL, 0, 0 ) ) {
-		TranslateMessage( &msg );
-		DispatchMessage( &msg );
+
+	/* create a thread that can handle incoming client requests */
+	/* (the thread starts executing in the function mailThread) */
+	/* NOTE: See online help for details, you need to know how  */
+	/*       this function does and what its parameters mean.   */
+	/* We have no parameters to pass, hence NULL				*/
+
+
+	threadID = threadCreate(mailThread, NULL);
+
+
+	/* (the message processing loop that all windows applications must have) */
+	/* NOTE: just leave it as it is. */
+	while (GetMessage(&msg, NULL, 0, 0)) {
+		TranslateMessage(&msg);
+		DispatchMessage(&msg);
 	}
 
 	return msg.wParam;
@@ -178,16 +180,54 @@ DWORD WINAPI mailThread(LPARAM arg) {
 }
 
 
-void WINAPI planetFunc(planet_type* planetData)
+void WINAPI planetFunc(planet_type* planet)
 {
-	while (planetData->life > 0) {
-		planetData->sx = planetData->sx + 10;
-		planetData->sy = planetData->sy + 10;
-		planetData->life = planetData->life - 1;
-		Sleep(200);
+
+	HANDLE mailSlot, databaseMutex;
+	static int posY = 0;
+	char planetName[20];
+	char testArray[50];
+	double Fs = 0;
+	double r = 0;
+	double a1 = 0;
+	double ax = 0;
+	double ay = 0;
+	double dt = 100;
+	planet_type *nextPlanet;
+	while (1)
+	{
+		if (planet->next != planet)
+			break;
+		Sleep(10);
 	}
-	HANDLE serverMailSlot = connectToServerMailslot();
-	mailslotWrite(serverMailSlot, planetData, sizeof(planet_type));
+	databaseMutex = CreateMutex(NULL, FALSE, "accessToDatabase");
+	lstrcpy(planetName, planet->name);
+	mailSlot = mailslotConnect("mailbox");
+	while (planet->life > 0)
+	{
+		nextPlanet = planet;
+		WaitForSingleObject(databaseMutex, INFINITE);
+		while (lstrcmp(planetName, nextPlanet->next->name))
+		{
+			nextPlanet = nextPlanet->next;
+			r = sqrt((pow(planet->sx - nextPlanet->sx, 2)) + pow(planet->sy - nextPlanet->sy, 2));
+			a1 = G * ((nextPlanet->mass) / pow(r, 2));
+			ax = ax + (a1 * (nextPlanet->sx - planet->sx) / r);
+			ay = ay + (a1 * (nextPlanet->sy - planet->sy) / r);
+		}
+		planet->vx = planet->vx + ax * dt;
+		planet->vy = planet->vy + ay * dt;
+		planet->sx = planet->sx + planet->vx * dt;
+		planet->sy = planet->sy + planet->vy * dt;
+		planet->life--;
+		ReleaseMutex(databaseMutex);
+		if ((planet->sx < 0) || (planet->sx > 800) || (planet->sy < 0) || (planet->sy > 600))
+			planet->life = 0;
+		ax = 0;
+		ay = 0;
+		Sleep(20);
+	}
+	mailslotWrite(mailSlot, planet, sizeof(planet_type));
 }
 
 
@@ -208,7 +248,7 @@ void WINAPI planetFunc(planet_type* planetData)
 LRESULT CALLBACK MainWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
 	PAINTSTRUCT ps;
-	int posX;
+	static int posX = 10;
 	int posY;
 	HANDLE context;
 	static DWORD color = 0;
@@ -231,7 +271,7 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 		/* NOTE: this is referred to as the 'graphics' thread in the lab spec. */
 
 		/* here we draw a simple sinus curve in the window    */
-		/* just to show how pixels are drawn                  */
+		/* 
 		
 		firstPlanet = planetDatabase;
 		currentPlanet = firstPlanet;
@@ -240,13 +280,19 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 			do {
 				posX = currentPlanet->sx;
 				posY = currentPlanet->sy;
-				SetPixel(hDC, posX, posY, 0);
+				SetPixel(hDC, posX, posY, (COLORREF)color);
+				color += 12;
 				currentPlanet = currentPlanet->next;
 			} while (currentPlanet != firstPlanet);
 		}
-		firstPlanet = NULL;
-		currentPlanet = firstPlanet;
 
+		just to show how pixels are drawn                  
+		windowRefreshTimer(hWnd, UPDATE_FREQ);
+		break;*/
+		posX += 4;
+		posY = (int)(10 * sin(posX / (double)30) + 20);
+		SetPixel(hDC, posX % 547, posY, (COLORREF)color);
+		color += 12;
 		windowRefreshTimer(hWnd, UPDATE_FREQ);
 		break;
 		/****************************************************************\
