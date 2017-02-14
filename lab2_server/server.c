@@ -125,6 +125,7 @@ DWORD WINAPI mailThread(LPARAM arg) {
 	//STARTUP
 	HANDLE mailslot = mailslotCreate ("serverMailSlot");
 	HANDLE startup = CreateEvent(NULL, 0, 0, "startup"), clientMailslot;
+	HANDLE databaseMutex = CreateMutex(NULL, FALSE, "accessToDatabase");
 	SetEvent(startup);
 	//END STARTUP
 
@@ -132,7 +133,7 @@ DWORD WINAPI mailThread(LPARAM arg) {
 
 		do {
 			GetMailslotInfo(mailslot, 0, &msgSize, 0, 0);
-			//Sleep(200);
+			Sleep(200);
 		} while (msgSize == MAILSLOT_NO_MESSAGE);
 
 		planet_type* buffer = (planet_type*)malloc(sizeof(planet_type));
@@ -148,17 +149,40 @@ DWORD WINAPI mailThread(LPARAM arg) {
 
 			}
 			else {
-				addPlanet(&planetDatabase, &buffer);
+				WaitForSingleObject(databaseMutex, INFINITE);
 				clientMailslot = mailslotConnect(buffer->pid);
-				sprintf_s(&msg[0], 100, "[SERVER]: New planet '%s' added to database.", buffer->name);
-				mailslotWrite(clientMailslot, msg, strlen(msg));
+				if (!addPlanet(&planetDatabase, &buffer)) {
+					sprintf_s(&msg[0], 100, "[SERVER]: New planet '%s' NOT added to database.", buffer->name);
+					mailslotWrite(clientMailslot, msg, strlen(msg));
+				}
+				else {
+					sprintf_s(&msg[0], 100, "[SERVER]: New planet '%s' added to database.", buffer->name);
+					mailslotWrite(clientMailslot, msg, strlen(msg));
+				}
 				clientMailslot = NULL;
 				threadCreate(planetFunc, buffer);
+				ReleaseMutex(databaseMutex);
 			}
 
 		}
-		else {
+		else if (buffer->life < 0) {
+			WaitForSingleObject(databaseMutex, INFINITE);
+			clientMailslot = mailslotConnect(buffer->pid);
 
+			if (!removePlanet(&planetDatabase, buffer->name)) {
+				sprintf_s(&msg[0], 100, "[SERVER]: Planet '%s' as left the area, but planet could NOT be removed!", buffer->name);
+				mailslotWrite(clientMailslot, msg, strlen(msg));
+			}
+
+			else {
+				sprintf_s(&msg[0], 100, "[SERVER]: Planet '%s' as left the area, and planet has been removed!", buffer->name);
+				mailslotWrite(clientMailslot, msg, strlen(msg));
+			}
+			clientMailslot = NULL;
+			ReleaseMutex(databaseMutex);
+		}
+		else {
+			WaitForSingleObject(databaseMutex, INFINITE);
 			clientMailslot = mailslotConnect(buffer->pid);
 
 			if (!removePlanet(&planetDatabase, buffer->name)) { 
@@ -171,6 +195,7 @@ DWORD WINAPI mailThread(LPARAM arg) {
 				mailslotWrite(clientMailslot, msg, strlen(msg));
 			}
 			clientMailslot = NULL;
+			ReleaseMutex(databaseMutex);
 		}
 
 			buffer = NULL;
@@ -194,15 +219,9 @@ void WINAPI planetFunc(planet_type* planet)
 	double ay = 0;
 	double dt = 100;
 	planet_type *nextPlanet;
-	while (1)
-	{
-		if (planet->next != planet)
-			break;
-		Sleep(10);
-	}
 	databaseMutex = CreateMutex(NULL, FALSE, "accessToDatabase");
 	lstrcpy(planetName, planet->name);
-	mailSlot = mailslotConnect("mailbox");
+	mailSlot = connectToServerMailslot();
 	while (planet->life > 0)
 	{
 		nextPlanet = planet;
@@ -222,10 +241,11 @@ void WINAPI planetFunc(planet_type* planet)
 		planet->life--;
 		ReleaseMutex(databaseMutex);
 		if ((planet->sx < 0) || (planet->sx > 800) || (planet->sy < 0) || (planet->sy > 600))
-			planet->life = 0;
+			planet->life = -1;
 		ax = 0;
 		ay = 0;
-		Sleep(20);
+
+		Sleep(100);
 	}
 	mailslotWrite(mailSlot, planet, sizeof(planet_type));
 }
@@ -248,8 +268,9 @@ void WINAPI planetFunc(planet_type* planet)
 LRESULT CALLBACK MainWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
 	PAINTSTRUCT ps;
-	static int posX = 10;
+	int posX;
 	int posY;
+	char life[10];
 	HANDLE context;
 	static DWORD color = 0;
 	planet_type *firstPlanet = NULL, *currentPlanet = NULL;
@@ -271,28 +292,29 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 		/* NOTE: this is referred to as the 'graphics' thread in the lab spec. */
 
 		/* here we draw a simple sinus curve in the window    */
-		/* 
+	
 		
 		firstPlanet = planetDatabase;
 		currentPlanet = firstPlanet;
-
+		Rectangle(hDC, 0, 0, 800, 600);
 		if (firstPlanet != NULL) {
 			do {
+				
 				posX = currentPlanet->sx;
 				posY = currentPlanet->sy;
-				SetPixel(hDC, posX, posY, (COLORREF)color);
+				//SetPixel(hDC, posX, posY, (COLORREF)color);
+				SetTextAlign(hDC, VTA_CENTER);
+				sprintf_s(life, 10, "%d", currentPlanet->life);
+				TextOut(hDC, posX ,posY + (log10(currentPlanet->mass) * 3.2),currentPlanet->name,lstrlen(currentPlanet->name));
+				TextOut(hDC, posX, posY + (log10(currentPlanet->mass) * 3.2)+16, life, lstrlen(life));
+
+				Ellipse(hDC, posX - (log10(currentPlanet->mass)*3), posY - (log10(currentPlanet->mass) * 3), posX+ (log10(currentPlanet->mass) * 3), posY+ (log10(currentPlanet->mass) * 3));
 				color += 12;
 				currentPlanet = currentPlanet->next;
 			} while (currentPlanet != firstPlanet);
 		}
 
-		just to show how pixels are drawn                  
-		windowRefreshTimer(hWnd, UPDATE_FREQ);
-		break;*/
-		posX += 4;
-		posY = (int)(10 * sin(posX / (double)30) + 20);
-		SetPixel(hDC, posX % 547, posY, (COLORREF)color);
-		color += 12;
+              
 		windowRefreshTimer(hWnd, UPDATE_FREQ);
 		break;
 		/****************************************************************\
@@ -303,7 +325,9 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 	case WM_PAINT:
 		/* NOTE: The code for this message can be removed. It's just */
 		/*       for showing something in the window.                */
+		context = BeginPaint(hWnd, &ps); /* (you can safely remove the following line of code) */
 
+		EndPaint(hWnd, &ps);
 		break;
 		/**************************************************************\
 		*     WM_DESTROY: PostQuitMessage() is called                  *
