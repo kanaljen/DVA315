@@ -46,25 +46,22 @@ BOOL removePlanet(planet_type** database, const char planetName[20])
 {
 	planet_type* planetToRemove = findPlanet(*database, planetName);
 	planet_type* temp = NULL;
-	if (planetToRemove != NULL){ //List is not empty
-		while (TRUE) { // Remove loop
-			if (*database == planetToRemove && (*database)->next == planetToRemove) { //Only one planet
-				free(*database);
-				*database = NULL;
-				return TRUE;
-			}
-			else if(*database == planetToRemove) { //Current database is planet to remove
-				*database == (*database)->next;
-			}
-			else if ((*database)->next == planetToRemove) { //remove planet
-				temp = (*database)->next;
-				(*database)->next = temp->next;
-				free(temp);
-				return TRUE;
-			}
-			
-		}
-		
+	if (planetToRemove == NULL)return FALSE; //List is empty, or planet does not exist
+	if (*database == planetToRemove && (*database)->next == planetToRemove) { //Only one planet, remove it
+		free(*database);
+		*database = NULL;
+		return TRUE;
 	}
-	return FALSE;
+
+	while (TRUE) { // List har more than one planet and planettoremove exist in list
+
+		if((*database)->next == planetToRemove){ //Planet to remove is the next planet
+			temp = (*database)->next;
+			(*database)->next = temp->next;
+			free(temp);
+			return TRUE;
+		}
+		*database = (*database)->next; //loop again
+	}
+	
 }

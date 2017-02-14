@@ -136,6 +136,7 @@ DWORD WINAPI mailThread(LPARAM arg) {
 			Sleep(200);
 		} while (msgSize == MAILSLOT_NO_MESSAGE);
 
+		WaitForSingleObject(databaseMutex, INFINITE);
 		planet_type* buffer = (planet_type*)malloc(sizeof(planet_type));
 		mailslotRead(mailslot, buffer, sizeof(planet_type));
 		if (buffer->life > 0) { //New planet from client
@@ -149,7 +150,7 @@ DWORD WINAPI mailThread(LPARAM arg) {
 
 			}
 			else {
-				WaitForSingleObject(databaseMutex, INFINITE);
+				//WaitForSingleObject(databaseMutex, INFINITE);
 				clientMailslot = mailslotConnect(buffer->pid);
 				if (!addPlanet(&planetDatabase, &buffer)) {
 					sprintf_s(&msg[0], 100, "[SERVER]: New planet '%s' NOT added to database.", buffer->name);
@@ -161,12 +162,12 @@ DWORD WINAPI mailThread(LPARAM arg) {
 				}
 				clientMailslot = NULL;
 				threadCreate(planetFunc, buffer);
-				ReleaseMutex(databaseMutex);
+				//ReleaseMutex(databaseMutex);
 			}
 
 		}
 		else if (buffer->life < 0) {
-			WaitForSingleObject(databaseMutex, INFINITE);
+			//WaitForSingleObject(databaseMutex, INFINITE);
 			clientMailslot = mailslotConnect(buffer->pid);
 
 			if (!removePlanet(&planetDatabase, buffer->name)) {
@@ -179,10 +180,10 @@ DWORD WINAPI mailThread(LPARAM arg) {
 				mailslotWrite(clientMailslot, msg, strlen(msg));
 			}
 			clientMailslot = NULL;
-			ReleaseMutex(databaseMutex);
+			//ReleaseMutex(databaseMutex);
 		}
 		else {
-			WaitForSingleObject(databaseMutex, INFINITE);
+			//WaitForSingleObject(databaseMutex, INFINITE);
 			clientMailslot = mailslotConnect(buffer->pid);
 
 			if (!removePlanet(&planetDatabase, buffer->name)) { 
@@ -195,10 +196,11 @@ DWORD WINAPI mailThread(LPARAM arg) {
 				mailslotWrite(clientMailslot, msg, strlen(msg));
 			}
 			clientMailslot = NULL;
-			ReleaseMutex(databaseMutex);
+			//ReleaseMutex(databaseMutex);
 		}
-
-			buffer = NULL;
+		ReleaseMutex(databaseMutex);
+		Sleep(200);
+		buffer = NULL;
   }
 
   return 0;
@@ -220,12 +222,13 @@ void WINAPI planetFunc(planet_type* planet)
 	double dt = 100;
 	planet_type *nextPlanet;
 	databaseMutex = CreateMutex(NULL, FALSE, "accessToDatabase");
+	WaitForSingleObject(databaseMutex, INFINITE);
 	lstrcpy(planetName, planet->name);
 	mailSlot = connectToServerMailslot();
 	while (planet->life > 0)
 	{
 		nextPlanet = planet;
-		WaitForSingleObject(databaseMutex, INFINITE);
+		
 		while (lstrcmp(planetName, nextPlanet->next->name))
 		{
 			nextPlanet = nextPlanet->next;
@@ -239,9 +242,10 @@ void WINAPI planetFunc(planet_type* planet)
 		planet->sx = planet->sx + planet->vx * dt;
 		planet->sy = planet->sy + planet->vy * dt;
 		planet->life--;
-		ReleaseMutex(databaseMutex);
+		
 		if ((planet->sx < 0) || (planet->sx > 800) || (planet->sy < 0) || (planet->sy > 600))
 			planet->life = -1;
+		ReleaseMutex(databaseMutex);
 		ax = 0;
 		ay = 0;
 
@@ -272,6 +276,7 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 	int posY;
 	char life[10];
 	HANDLE context;
+	HANDLE databaseMutex = CreateMutex(NULL, FALSE, "accessToDatabase");
 	static DWORD color = 0;
 	planet_type *firstPlanet = NULL, *currentPlanet = NULL;
 
@@ -293,13 +298,12 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 
 		/* here we draw a simple sinus curve in the window    */
 	
-		
+		WaitForSingleObject(databaseMutex, INFINITE);
 		firstPlanet = planetDatabase;
 		currentPlanet = firstPlanet;
 		Rectangle(hDC, 0, 0, 800, 600);
 		if (firstPlanet != NULL) {
 			do {
-				
 				posX = currentPlanet->sx;
 				posY = currentPlanet->sy;
 				//SetPixel(hDC, posX, posY, (COLORREF)color);
@@ -311,9 +315,12 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 				Ellipse(hDC, posX - (log10(currentPlanet->mass)*3), posY - (log10(currentPlanet->mass) * 3), posX+ (log10(currentPlanet->mass) * 3), posY+ (log10(currentPlanet->mass) * 3));
 				color += 12;
 				currentPlanet = currentPlanet->next;
+
 			} while (currentPlanet != firstPlanet);
 		}
 
+		ReleaseMutex(databaseMutex);
+		Sleep(0);
               
 		windowRefreshTimer(hWnd, UPDATE_FREQ);
 		break;

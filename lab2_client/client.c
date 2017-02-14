@@ -29,31 +29,56 @@ void main(void) {
 
 	//INPUT LOOP
 	DWORD bytesWritten;
+	time_t t;
+	srand((unsigned)time(&t));
+	int rc, neg;
 	planet_type* newPlanet = (planet_type*)malloc(sizeof(planet_type));
 	do {
 		printf("Name of planet: ");
 		scanf_s("%s", newPlanet->name, 20);
-		printf("Mass of planet (In thousands!): ");
-		scanf_s("%lf", &(newPlanet->mass));
-		newPlanet->mass = newPlanet->mass * 1000;
-		printf("Position X: ");
-		scanf_s("%lf", &(newPlanet->sx));
-		printf("Position Y: ");
-		scanf_s("%lf", &(newPlanet->sy));
-		printf("Velocity X: ");
-		scanf_s("%lf", &(newPlanet->vx));
-		newPlanet->vx = newPlanet->vx * 0.001;
-		printf("Velocity Y: ");
-		scanf_s("%lf", &(newPlanet->vy));
-		newPlanet->vy = newPlanet->vy * 0.001;
-		printf("Life: ");
-		scanf_s("%d", &(newPlanet->life));
+		rc = strcmp(newPlanet->name,"a");
+
+		if (rc == 0) {
+
+			sprintf_s(newPlanet->name, 10, "%d", rand());
+			newPlanet->mass = (rand() % 1000) * 1000;
+			newPlanet->sx = (rand() % 300) + 200;
+			newPlanet->sy = (rand() % 300) + 100;
+			if (rand() % 2 == 1)neg = -1;
+			else neg = 1;
+			newPlanet->vx = (rand() % 20) * 0.001 * neg;
+			if (rand() % 2 == 1)neg = -1;
+			else neg = 1;
+			newPlanet->vy = (rand() % 20) * 0.001 * neg;
+			newPlanet->life = rand() % 50 + 100;
+		}
+
+		else {	
+			printf("Mass of planet (In thousands!): ");
+			scanf_s("%lf", &(newPlanet->mass));
+			newPlanet->mass = newPlanet->mass * 1000;
+			printf("Position X: ");
+			scanf_s("%lf", &(newPlanet->sx));
+			printf("Position Y: ");
+			scanf_s("%lf", &(newPlanet->sy));
+			printf("Velocity X: ");
+			scanf_s("%lf", &(newPlanet->vx));
+			newPlanet->vx = newPlanet->vx * 0.001;
+			printf("Velocity Y: ");
+			scanf_s("%lf", &(newPlanet->vy));
+			newPlanet->vy = newPlanet->vy * 0.001;
+			printf("Life: ");
+			scanf_s("%d", &(newPlanet->life));
+		}
+
 		sprintf_s(newPlanet->pid, 10, "%d", GetCurrentProcessId());
 
 		bytesWritten = mailslotWrite(serverMailSlot, newPlanet, sizeof(planet_type));
 		if (bytesWritten != -1)printf("\nData sent to server (bytes = %d)\n", bytesWritten);
 		else printf("\nFailed sending data to server\n");
+
 		Sleep(500);
+
 	} while (TRUE);
 	//END LOOP
 
