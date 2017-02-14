@@ -3,5 +3,5 @@
 
 extern void flushInput();
 extern HANDLE connectToServerMailslot();
-
+extern void autoAddSystem(int numberOfPlanets);
 #endif

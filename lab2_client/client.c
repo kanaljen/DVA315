@@ -31,26 +31,32 @@ void main(void) {
 	DWORD bytesWritten;
 	time_t t;
 	srand((unsigned)time(&t));
-	int rc, neg;
-	planet_type* newPlanet = (planet_type*)malloc(sizeof(planet_type));
+	int sys, aut, neg, numb;
+	
 	do {
+		planet_type* newPlanet = (planet_type*)malloc(sizeof(planet_type));
 		printf("Name of planet: ");
 		scanf_s("%s", newPlanet->name, 20);
-		rc = strcmp(newPlanet->name,"a");
-
-		if (rc == 0) {
-
+		sys = strcmp(newPlanet->name, "s");
+		aut = strcmp(newPlanet->name, "a");
+		if (sys == 0) { //Auto add system
+			printf("Number of planets in system:");
+			scanf_s("%d", &numb);
+			autoAddSystem(numb);
+		}
+		else if (aut == 0) { // Auto add planet
 			sprintf_s(newPlanet->name, 10, "%d", rand());
-			newPlanet->mass = (rand() % 1000) * 1000;
-			newPlanet->sx = (rand() % 300) + 200;
-			newPlanet->sy = (rand() % 300) + 100;
+			newPlanet->mass = (rand() % 1000) * 100;
+			newPlanet->sx = (rand() % 400) + 200;
+			newPlanet->sy = (rand() % 300) + 150;
 			if (rand() % 2 == 1)neg = -1;
 			else neg = 1;
 			newPlanet->vx = (rand() % 20) * 0.001 * neg;
 			if (rand() % 2 == 1)neg = -1;
 			else neg = 1;
 			newPlanet->vy = (rand() % 20) * 0.001 * neg;
-			newPlanet->life = rand() % 50 + 100;
+			newPlanet->life = rand() % 300 + 100;
+			sprintf_s(newPlanet->pid, 10, "%d", GetCurrentProcessId());
 		}
 
 		else {	
@@ -69,15 +75,19 @@ void main(void) {
 			newPlanet->vy = newPlanet->vy * 0.001;
 			printf("Life: ");
 			scanf_s("%d", &(newPlanet->life));
+			sprintf_s(newPlanet->pid, 10, "%d", GetCurrentProcessId());
 		}
-
-		sprintf_s(newPlanet->pid, 10, "%d", GetCurrentProcessId());
 
 		bytesWritten = mailslotWrite(serverMailSlot, newPlanet, sizeof(planet_type));
 		if (bytesWritten != -1)printf("\nData sent to server (bytes = %d)\n", bytesWritten);
 		else printf("\nFailed sending data to server\n");
 
 		Sleep(500);
+
+		free(newPlanet);
+		newPlanet = NULL;
+
+		
 
 	} while (TRUE);
 	//END LOOP
