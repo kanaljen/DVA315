@@ -55,7 +55,7 @@ void autoAddSystem(int numberOfPlanets)
 		if (rand() % 2 == 1)neg = -1;
 		else neg = 1;
 		newPlanet->vy = (rand() % 20) * 0.001 * neg;
-		newPlanet->life = rand() % 300 + 100;
+		newPlanet->life = rand() % 1000 + 500;
 		sprintf_s(newPlanet->pid, 10, "%d", GetCurrentProcessId());
 
 		mailslotWrite(serverMailSlot, newPlanet, sizeof(planet_type));
