@@ -149,41 +149,42 @@ DWORD WINAPI mailThread(LPARAM arg) {
 				free(buffer);
 
 			}
-			else {
-				//WaitForSingleObject(databaseMutex, INFINITE);
+			else {//Add new planet
+
 				clientMailslot = mailslotConnect(buffer->pid);
-				if (!addPlanet(&planetDatabase, &buffer)) {
+				if (!addPlanet(&planetDatabase, &buffer)) { //If somethings wrong with the add
 					sprintf_s(&msg[0], 100, "[SERVER]: New planet '%s' NOT added to database.", buffer->name);
 					mailslotWrite(clientMailslot, msg, strlen(msg));
 				}
-				else {
+				else { //Report successfull add
 					sprintf_s(&msg[0], 100, "[SERVER]: New planet '%s' added to database.", buffer->name);
 					mailslotWrite(clientMailslot, msg, strlen(msg));
 				}
 				clientMailslot = NULL;
 				threadCreate(planetFunc, buffer);
-				//ReleaseMutex(databaseMutex);
+
 			}
 
 		}
-		else if (buffer->life < 0) {
-			//WaitForSingleObject(databaseMutex, INFINITE);
+		else if (buffer->life < 0) { //Planet has left the system
+
 			clientMailslot = mailslotConnect(buffer->pid);
 
-			if (!removePlanet(&planetDatabase, buffer->name)) {
+			if (!removePlanet(&planetDatabase, buffer->name)) { //DB remove not ok
 				sprintf_s(&msg[0], 100, "[SERVER]: Planet '%s' as left the area, but planet could NOT be removed!", buffer->name);
 				mailslotWrite(clientMailslot, msg, strlen(msg));
 			}
 
-			else {
+			else { //DB remove ok
 				sprintf_s(&msg[0], 100, "[SERVER]: Planet '%s' as left the area, and planet has been removed!", buffer->name);
 				mailslotWrite(clientMailslot, msg, strlen(msg));
 			}
 			clientMailslot = NULL;
-			//ReleaseMutex(databaseMutex);
+			free(buffer);
+
 		}
-		else {
-			//WaitForSingleObject(databaseMutex, INFINITE);
+		else { // Life is zero
+
 			clientMailslot = mailslotConnect(buffer->pid);
 
 			if (!removePlanet(&planetDatabase, buffer->name)) { 
@@ -196,7 +197,8 @@ DWORD WINAPI mailThread(LPARAM arg) {
 				mailslotWrite(clientMailslot, msg, strlen(msg));
 			}
 			clientMailslot = NULL;
-			//ReleaseMutex(databaseMutex);
+			free(buffer);
+
 		}
 		ReleaseMutex(databaseMutex);
 		Sleep(200);
