@@ -124,7 +124,7 @@ DWORD WINAPI mailThread(LPARAM arg) {
 
 	//STARTUP
 	HANDLE mailslot = mailslotCreate ("serverMailSlot");
-	HANDLE startup = CreateEvent(NULL, 0, 0, "startup"), clientMailslot;
+	HANDLE startup = CreateEvent(NULL, 1, 0, "startup"), clientMailslot;
 	HANDLE databaseMutex = CreateMutex(NULL, FALSE, "accessToDatabase");
 	SetEvent(startup);
 	//END STARTUP

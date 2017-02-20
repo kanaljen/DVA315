@@ -19,7 +19,7 @@ DWORD WINAPI mailThread();
 
 void main(void) {
 
-	HANDLE startup = CreateEvent(NULL,0,0,"startup");
+	HANDLE startup = CreateEvent(NULL,1,0,"startup");
 
 	DWORD mailThreadID = threadCreate(mailThread,NULL);
 	HANDLE mailThread = OpenThread(THREAD_ALL_ACCESS,0,mailThreadID);
