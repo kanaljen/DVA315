@@ -29,7 +29,7 @@ void autoAddSystem(int numberOfPlanets)
 
 	newPlanet = (planet_type*)malloc(sizeof(planet_type));
 	sprintf_s(newPlanet->name, 10, "%s", "Sun");
-	newPlanet->mass = 1000000000;
+	newPlanet->mass = 100000000;
 	newPlanet->sx = 400;
 	newPlanet->sy = 300;
 	newPlanet->vx = 0;
