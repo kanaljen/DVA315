@@ -17,6 +17,8 @@ INT_PTR CALLBACK addPlanetPROC(HWND hDlg, UINT message, WPARAM wParam, LPARAM lP
 INT_PTR CALLBACK addSystemPROC(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
 DWORD WINAPI mailThread(LPARAM);
 void newAutoAddSystem(int numOfPlanets);
+void openPlanetFile(void);
+void savePlanetFile(void);
 
 
 
@@ -157,6 +159,12 @@ LRESULT CALLBACK WndProcedure(HWND hWnd, UINT Msg,
 		case ID_MENU1_NEWSYSTEM:
 			systemDLG = CreateDialog(hInstance, MAKEINTRESOURCE(IDD_ADDSYSTEM), hWnd, addSystemPROC);
 			ShowWindow(systemDLG, 1);
+			break;
+		case ID_PLANET_OPENPLANET:
+			openPlanetFile();
+			break;
+		case ID_PLANET_SAVEPLANET:
+			savePlanetFile();
 			break;
 		case ID_PLANET_EXIT:
 			DestroyWindow(hWnd);
@@ -456,4 +464,12 @@ void newAutoAddSystem(int numOfPlanets) {
 		}
 
 	}
+}
+
+void openPlanetFile(void){
+	HANDLE fileHandle = OpenFileDialog("planet", GENERIC_READ, CREATE_ALWAYS);
+}
+
+void savePlanetFile(void) {
+	HANDLE fileHandle = OpenFileDialog("planet", NULL, CREATE_ALWAYS);
 }
