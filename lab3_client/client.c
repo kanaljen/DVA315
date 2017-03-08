@@ -7,14 +7,16 @@
 #include "database.h"
 
 planet_type* planetDatabase;
-HWND databaseDLG, feedbackDLG;
+HWND databaseDLG, feedbackDLG, addDLG, systemDLG;
 HANDLE serverMailSlot;
 
 
 LRESULT CALLBACK WndProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 INT_PTR CALLBACK planetListPROC(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
 INT_PTR CALLBACK addPlanetPROC(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
+INT_PTR CALLBACK addSystemPROC(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
 DWORD WINAPI mailThread(LPARAM);
+void newAutoAddSystem(int numOfPlanets);
 
 
 
@@ -23,6 +25,7 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 {
 	MSG        Msg;
 	WNDCLASSEX WndClsEx;
+	HANDLE databaseMutex = CreateMutex(NULL, FALSE, "accessToDatabase");
 
 	
 
@@ -135,8 +138,8 @@ LRESULT CALLBACK WndProcedure(HWND hWnd, UINT Msg,
 		databaseDLG = CreateDialog(hInstance, MAKEINTRESOURCE(IDD_DATABASEDLG), hWnd, planetListPROC);
 		feedbackDLG = CreateDialog(hInstance, MAKEINTRESOURCE(IDD_FEEDBACKDLG), hWnd, planetListPROC);
 
-		ShowWindow(databaseDLG,1);
 		ShowWindow(feedbackDLG, 1);
+		ShowWindow(databaseDLG, 1);
 
 		DWORD threadID = threadCreate(mailThread, NULL);
 
@@ -148,10 +151,12 @@ LRESULT CALLBACK WndProcedure(HWND hWnd, UINT Msg,
 		switch (wmId)
 		{
 		case ID_MENU1_NEWPLANET:
-			DialogBox(hInstance, MAKEINTRESOURCE(IDD_ADDPLANET), hWnd, addPlanetPROC);
+			addDLG = CreateDialog(hInstance, MAKEINTRESOURCE(IDD_ADDPLANET), hWnd, addPlanetPROC);
+			ShowWindow(addDLG, 1);
 			break;
 		case ID_MENU1_NEWSYSTEM:
-			//System add
+			systemDLG = CreateDialog(hInstance, MAKEINTRESOURCE(IDD_ADDSYSTEM), hWnd, addSystemPROC);
+			ShowWindow(systemDLG, 1);
 			break;
 		case ID_PLANET_EXIT:
 			DestroyWindow(hWnd);
@@ -179,6 +184,7 @@ INT_PTR CALLBACK addPlanetPROC(HWND hDlg, UINT message, WPARAM wParam, LPARAM lP
 	HWND feedbackHandle = GetDlgItem(feedbackDLG, IDC_FEEDBACKLIST);
 	HWND databaselistHandle = GetDlgItem(databaseDLG, IDC_PLANETLIST);
 	HWND alivelistHandle = GetDlgItem(databaseDLG, IDC_ALIVELIST);
+	HANDLE databaseMutex = CreateMutex(NULL, FALSE, "accessToDatabase");
 
 	switch (message)
 	{
@@ -195,6 +201,10 @@ INT_PTR CALLBACK addPlanetPROC(HWND hDlg, UINT message, WPARAM wParam, LPARAM lP
 			sprintf_s(buffer->pid, 10, "%d", GetCurrentProcessId());
 			buffer->next = NULL;
 			GetDlgItemText(hDlg, IDC_EDIT_NAME,buffer->name,20);
+			if (findPlanet(planetDatabase, buffer->name) != NULL) {
+				free(buffer);
+				return (INT_PTR)FALSE;
+			}
 			GetDlgItemText(hDlg, IDC_EDIT_MASS, strbuffer, 10);
 			buffer->mass = atoi(strbuffer);
 			GetDlgItemText(hDlg, IDC_EDIT_LIFE, strbuffer, 10);
@@ -209,8 +219,10 @@ INT_PTR CALLBACK addPlanetPROC(HWND hDlg, UINT message, WPARAM wParam, LPARAM lP
 			buffer->vy = atoi(strbuffer);
 			strbuffer = NULL;
 
+			WaitForSingleObject(databaseMutex,INFINITE);
 			//Add new planet to database
 			addPlanet(&planetDatabase,&buffer);
+			ReleaseMutex(databaseMutex);
 			char *newstrbuffer[100];
 			sprintf_s(newstrbuffer, 100, "[CLIENT] Added '%s' to local database", buffer->name);
 			SendMessage(feedbackHandle, LB_ADDSTRING, NULL, newstrbuffer);
@@ -234,12 +246,57 @@ INT_PTR CALLBACK addPlanetPROC(HWND hDlg, UINT message, WPARAM wParam, LPARAM lP
 	return (INT_PTR)FALSE;
 }
 
+INT_PTR CALLBACK addSystemPROC(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	UNREFERENCED_PARAMETER(lParam);
+	HWND feedbackHandle = GetDlgItem(feedbackDLG, IDC_FEEDBACKLIST);
+	HWND databaselistHandle = GetDlgItem(databaseDLG, IDC_PLANETLIST);
+	HWND alivelistHandle = GetDlgItem(databaseDLG, IDC_ALIVELIST);
+
+	switch (message)
+	{
+	case WM_INITDIALOG:
+		return (INT_PTR)TRUE;
+
+	case WM_COMMAND:
+		if (LOWORD(wParam) == IDOK)// || LOWORD(wParam) == IDCANCEL)
+		{
+
+			char *strbuffer = (char*)malloc(sizeof(char) * 10);
+
+			//How many planets?
+			GetDlgItemText(hDlg, IDC_NUMBEROFPLAN, strbuffer, 10);
+			int numOfPlanets = atoi(strbuffer);
+
+			// Free memory
+			strbuffer = NULL;
+			free(strbuffer);
+
+			threadCreate(newAutoAddSystem,numOfPlanets);
+
+			//End Dialog
+			EndDialog(hDlg, LOWORD(wParam));
+			return (INT_PTR)TRUE;
+		}
+		if (LOWORD(wParam) == IDCANCEL)
+		{
+			EndDialog(hDlg, LOWORD(wParam));
+			return (INT_PTR)TRUE;
+		}
+		break;
+	}
+	return (INT_PTR)FALSE;
+}
+
+
 INT_PTR CALLBACK planetListPROC(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	UNREFERENCED_PARAMETER(lParam);
 	HWND feedbackHandle = GetDlgItem(feedbackDLG, IDC_FEEDBACKLIST);
 	HWND databaselistHandle = GetDlgItem(databaseDLG, IDC_PLANETLIST);
 	HWND alivelistHandle = GetDlgItem(databaseDLG, IDC_ALIVELIST);
+
+	HANDLE databaseMutex = CreateMutex(NULL, FALSE, "accessToDatabase");
 
 	switch (message)
 	{
@@ -258,6 +315,7 @@ INT_PTR CALLBACK planetListPROC(HWND hDlg, UINT message, WPARAM wParam, LPARAM l
 			
 			char *nameOfPlanet;
 			int k = 0;
+			WaitForSingleObject(databaseMutex, INFINITE);
 			for (int i = 0; i < numSelItems; i++) {
 				
 				nameOfPlanet = (char*)malloc(sizeof(char) * 20);
@@ -279,21 +337,23 @@ INT_PTR CALLBACK planetListPROC(HWND hDlg, UINT message, WPARAM wParam, LPARAM l
 				else SendMessage(feedbackHandle, LB_ADDSTRING, NULL, "[CLIENT] Failed to write to server"); 
 				free(nameOfPlanet);
 				k++;
+				Sleep(50);
 			}
-
+			ReleaseMutex(databaseMutex);
 			return (INT_PTR)TRUE;
 		}
 		if (LOWORD(wParam) == IDC_BUTTON_REMPLANET)
 		{
 
-			int *selItemsArray = (int*)malloc(sizeof(int) * 10);
+			int *selItemsArray = (int*)malloc(sizeof(int) * 100);
 			//Count number of selected items in list
 			int numSelItems = SendMessage(databaselistHandle, LB_GETSELCOUNT, 0, 0);
 			//Write selected items index# to an array
-			int cSelItemsInBuffer = SendMessage(databaselistHandle, LB_GETSELITEMS, 10, (LPARAM)selItemsArray);
+			int cSelItemsInBuffer = SendMessage(databaselistHandle, LB_GETSELITEMS, 100, (LPARAM)selItemsArray);
 
 			char *nameOfPlanet;
 			int k = 0;
+			WaitForSingleObject(databaseMutex, INFINITE);
 			for (int i = 0; i < numSelItems; i++) {
 
 				nameOfPlanet = (char*)malloc(sizeof(char) * 20);
@@ -302,8 +362,10 @@ INT_PTR CALLBACK planetListPROC(HWND hDlg, UINT message, WPARAM wParam, LPARAM l
 				//Remove planet name from localdatabase list
 				SendMessage(databaselistHandle, LB_DELETESTRING, selItemsArray[i] - k, 0);
 
+				
 				//Remove planet from database
 				removePlanet(&planetDatabase,nameOfPlanet);
+				
 
 				char txtbuffer[100];
 				sprintf_s(txtbuffer, 100, "[CLIENT] Removed '%s' from local database", nameOfPlanet);
@@ -311,8 +373,9 @@ INT_PTR CALLBACK planetListPROC(HWND hDlg, UINT message, WPARAM wParam, LPARAM l
 
 				free(nameOfPlanet);
 				k++;
+				Sleep(50);
 			}
-
+			ReleaseMutex(databaseMutex);
 			return (INT_PTR)TRUE;
 		}
 		break;
@@ -320,3 +383,77 @@ INT_PTR CALLBACK planetListPROC(HWND hDlg, UINT message, WPARAM wParam, LPARAM l
 	return (INT_PTR)FALSE;
 }
 
+void newAutoAddSystem(int numOfPlanets) {
+	
+	HWND feedbackHandle = GetDlgItem(feedbackDLG, IDC_FEEDBACKLIST);
+	HWND databaselistHandle = GetDlgItem(databaseDLG, IDC_PLANETLIST);
+	HWND alivelistHandle = GetDlgItem(databaseDLG, IDC_ALIVELIST);
+
+	HANDLE databaseMutex = CreateMutex(NULL, FALSE, "accessToDatabase");
+
+	time_t t;
+	srand((unsigned)time(&t));
+	int rc, neg;
+	planet_type *newPlanet;
+
+
+	//Create the SUN
+	newPlanet = (planet_type*)malloc(sizeof(planet_type));
+	sprintf_s(newPlanet->name, 10, "%s", "Sun");
+	newPlanet->mass = 100000000;
+	newPlanet->sx = 400;
+	newPlanet->sy = 300;
+	newPlanet->vx = 0;
+	newPlanet->vy = 0;
+	newPlanet->life = 99999999;
+	sprintf_s(newPlanet->pid, 10, "%d", GetCurrentProcessId());
+
+	WaitForSingleObject(databaseMutex, INFINITE);
+	//Add sun to database
+	addPlanet(&planetDatabase, &newPlanet);
+	char *newstrbuffer[100];
+	sprintf_s(newstrbuffer, 100, "[CLIENT] Added '%s' to local database", newPlanet->name);
+	SendMessage(feedbackHandle, LB_ADDSTRING, NULL, newstrbuffer);
+	SendMessage(databaselistHandle, LB_ADDSTRING, NULL, newPlanet->name);
+	ReleaseMutex(databaseMutex);
+
+	newPlanet = NULL;
+	Sleep(50);
+
+	for (int i = 0; i < numOfPlanets; i++) {
+
+		newPlanet = (planet_type*)malloc(sizeof(planet_type));
+
+		sprintf_s(newPlanet->name, 10, "%d", rand());
+		if (findPlanet(planetDatabase, newPlanet->name) != NULL) {
+			free(newPlanet);
+			newPlanet = NULL;
+			i--;
+		}
+		else {
+			newPlanet->mass = (rand() % 1000) * 100;
+			newPlanet->sx = (rand() % 400) + 200;
+			newPlanet->sy = (rand() % 300) + 150;
+			if (rand() % 2 == 1)neg = -1;
+			else neg = 1;
+			newPlanet->vx = (rand() % 20) * 0.001 * neg;
+			if (rand() % 2 == 1)neg = -1;
+			else neg = 1;
+			newPlanet->vy = (rand() % 20) * 0.001 * neg;
+			newPlanet->life = rand() % 1000 + 500;
+			sprintf_s(newPlanet->pid, 10, "%d", GetCurrentProcessId());
+
+			WaitForSingleObject(databaseMutex, INFINITE);
+			//Add new planet to database
+			addPlanet(&planetDatabase, &newPlanet);
+			char *newstrbuffer[100];
+			sprintf_s(newstrbuffer, 100, "[CLIENT] Added '%s' to local database", newPlanet->name);
+			SendMessage(feedbackHandle, LB_ADDSTRING, NULL, newstrbuffer);
+			SendMessage(databaselistHandle, LB_ADDSTRING, NULL, newPlanet->name);
+			ReleaseMutex(databaseMutex);
+			newPlanet = NULL;
+			Sleep(50);
+		}
+
+	}
+}
