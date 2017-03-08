@@ -146,13 +146,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\staffan.c" />
     <ClCompile Include="..\wrapper.c" />
     <ClCompile Include="client.c" />
     <ClCompile Include="database.c" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\staffan.h" />
     <ClInclude Include="..\wrapper.h" />
     <ClInclude Include="database.h" />
     <ClInclude Include="resource.h" />

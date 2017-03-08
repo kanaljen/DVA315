@@ -120,7 +120,7 @@ DWORD WINAPI mailThread(LPARAM arg) {
 	DWORD msgSize;
 	static int posY = 0;
 	planet_type *buffer = NULL, *planetPtr = NULL;
-	char *msg = (char*)malloc(sizeof(char)*100);
+	feedback_type *msg = (char*)malloc(sizeof(feedback_type));
 
 	//STARTUP
 	HANDLE mailslot = mailslotCreate ("serverMailSlot");
@@ -143,8 +143,10 @@ DWORD WINAPI mailThread(LPARAM arg) {
 			planetPtr = findPlanet(planetDatabase, buffer->name);
 			if (planetPtr != NULL) { //planet exist
 				clientMailslot = mailslotConnect(buffer->pid);
-				sprintf_s(&msg[0], 100, "[SERVER]: A planet with name '%s' already exist.", buffer->name);
-				mailslotWrite(clientMailslot, msg, strlen(msg));
+				sprintf_s(msg->msg, 100, "[SERVER] A planet with name '%s' already exist.", buffer->name);
+				sprintf_s(msg->name, 20, "%s", buffer->name);
+				msg->type = 1;
+				mailslotWrite(clientMailslot, msg, sizeof(feedback_type));
 				clientMailslot = NULL;
 				free(buffer);
 
@@ -153,12 +155,20 @@ DWORD WINAPI mailThread(LPARAM arg) {
 
 				clientMailslot = mailslotConnect(buffer->pid);
 				if (!addPlanet(&planetDatabase, &buffer)) { //If somethings wrong with the add
-					sprintf_s(&msg[0], 100, "[SERVER]: New planet '%s' NOT added to database.", buffer->name);
-					mailslotWrite(clientMailslot, msg, strlen(msg));
+					//Start msg-send
+					sprintf_s(msg->msg, 100, "[SERVER] New planet '%s' NOT added to database.", buffer->name);
+					sprintf_s(msg->name, 20, "%s", buffer->name);
+					msg->type = 1;
+					mailslotWrite(clientMailslot, msg, sizeof(feedback_type));
+					//End msg-send
 				}
 				else { //Report successfull add
-					sprintf_s(&msg[0], 100, "[SERVER]: New planet '%s' added to database.", buffer->name);
-					mailslotWrite(clientMailslot, msg, strlen(msg));
+					//Start msg-send
+					sprintf_s(msg->msg, 100, "[SERVER] New planet '%s' added to database.", buffer->name);
+					sprintf_s(msg->name, 20, "%s", buffer->name);
+					msg->type = 1;
+					mailslotWrite(clientMailslot, msg, sizeof(feedback_type));
+					//End msg-send
 				}
 				clientMailslot = NULL;
 				threadCreate(planetFunc, buffer);
@@ -171,13 +181,21 @@ DWORD WINAPI mailThread(LPARAM arg) {
 			clientMailslot = mailslotConnect(buffer->pid);
 
 			if (!removePlanet(&planetDatabase, buffer->name)) { //DB remove not ok
-				sprintf_s(&msg[0], 100, "[SERVER]: Planet '%s' as left the area, but planet could NOT be removed!", buffer->name);
-				mailslotWrite(clientMailslot, msg, strlen(msg));
+				//Start msg-send
+				sprintf_s(msg->msg, 100, "[SERVER] Planet '%s' as left the area, but planet could NOT be removed!", buffer->name);
+				sprintf_s(msg->name, 20, "%s", buffer->name);
+				msg->type = -1;
+				mailslotWrite(clientMailslot, msg, sizeof(feedback_type));
+				//End msg-send
 			}
 
 			else { //DB remove ok
-				sprintf_s(&msg[0], 100, "[SERVER]: Planet '%s' as left the area, and planet has been removed!", buffer->name);
-				mailslotWrite(clientMailslot, msg, strlen(msg));
+				//Start msg-send
+				sprintf_s(msg->msg, 100, "[SERVER] Planet '%s' as left the area, and planet has been removed!", buffer->name);
+				sprintf_s(msg->name, 20, "%s", buffer->name);
+				msg->type = -1;
+				mailslotWrite(clientMailslot, msg, sizeof(feedback_type));
+				//End msg-send
 			}
 			clientMailslot = NULL;
 			free(buffer);
@@ -188,13 +206,21 @@ DWORD WINAPI mailThread(LPARAM arg) {
 			clientMailslot = mailslotConnect(buffer->pid);
 
 			if (!removePlanet(&planetDatabase, buffer->name)) { 
-				sprintf_s(&msg[0], 100, "[SERVER]: Life of '%s' as expired, but planet could NOT be removed!", buffer->name);
-				mailslotWrite(clientMailslot, msg, strlen(msg));
+				//Start msg-send
+				sprintf_s(msg->msg, 100, "[SERVER] Life of '%s' as expired, but planet could NOT be removed!", buffer->name);
+				sprintf_s(msg->name, 20, "%s", buffer->name);
+				msg->type = 0;
+				mailslotWrite(clientMailslot, msg, sizeof(feedback_type));
+				//End msg-send
 			}
 
 			else {
-				sprintf_s(&msg[0], 100, "[SERVER]: Life of '%s' as expired, and planet has been removed!", buffer->name);
-				mailslotWrite(clientMailslot, msg, strlen(msg));
+				//Start msg-send
+				sprintf_s(msg->msg, 100, "[SERVER] Life of '%s' as expired, and planet has been removed!", buffer->name);
+				sprintf_s(msg->name, 20, "%s", buffer->name);
+				msg->type = 0;
+				mailslotWrite(clientMailslot, msg, sizeof(feedback_type));
+				//End msg-send
 			}
 			clientMailslot = NULL;
 			free(buffer);
