@@ -2,11 +2,12 @@
 #include <Windowsx.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <tchar.h>
 #include "resource.h"
 #include "../wrapper.h"
 #include "database.h"
 
-planet_type* planetDatabase;
+planet_type* planetDatabase = NULL;
 HWND databaseDLG, feedbackDLG, addDLG, systemDLG;
 HANDLE serverMailSlot;
 
@@ -16,6 +17,7 @@ INT_PTR CALLBACK planetListPROC(HWND hDlg, UINT message, WPARAM wParam, LPARAM l
 INT_PTR CALLBACK addPlanetPROC(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
 INT_PTR CALLBACK addSystemPROC(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
 DWORD WINAPI mailThread(LPARAM);
+
 void newAutoAddSystem(int numOfPlanets);
 void openPlanetFile(void);
 void savePlanetFile(void);
@@ -107,9 +109,8 @@ DWORD WINAPI mailThread()
 			// Print feedback messege
 			SendMessage(feedbackHandle, LB_ADDSTRING, NULL, msg->msg);
 
-
 			// Move planets, from active to waiting
-			if (msg->type == 0 || msg->type == -1) {
+			if (msg->type == 0) {
 
 				SendMessage(alivelistHandle, LB_DELETESTRING, 0, msg->name);
 				SendMessage(databaselistHandle, LB_ADDSTRING, NULL, msg->name);
@@ -467,9 +468,104 @@ void newAutoAddSystem(int numOfPlanets) {
 }
 
 void openPlanetFile(void){
-	HANDLE fileHandle = OpenFileDialog("planet", GENERIC_READ, CREATE_ALWAYS);
+	HWND feedbackHandle = GetDlgItem(feedbackDLG, IDC_FEEDBACKLIST);
+	HWND databaselistHandle = GetDlgItem(databaseDLG, IDC_PLANETLIST);
+	HWND alivelistHandle = GetDlgItem(databaseDLG, IDC_ALIVELIST);
+
+	HANDLE databaseMutex = CreateMutex(NULL, FALSE, "accessToDatabase");
+
+	HANDLE fileHandle = OpenFileDialog("Open Planet", GENERIC_READ, OPEN_EXISTING);
+
+
+	if (fileHandle == INVALID_HANDLE_VALUE)return;
+
+
+	planet_type *newPlanet;
+
+	
+
+	int totalBytes = 0;
+	PLARGE_INTEGER fileSize = calloc(1,sizeof(LARGE_INTEGER));
+	GetFileSizeEx(fileHandle,fileSize);
+	int filesToRead = (fileSize->LowPart / (sizeof(planet_type)));
+	free(fileSize);
+
+	WaitForSingleObject(databaseMutex, INFINITE);
+	
+	for (int i = 0; i < filesToRead; i++) {
+
+		newPlanet = calloc(1,sizeof(planet_type));
+
+		int bytesWritten;
+
+		ReadFile(fileHandle, (LPVOID)newPlanet, sizeof(planet_type), &bytesWritten, NULL);
+
+		totalBytes = totalBytes + bytesWritten;
+		
+		addPlanet(&planetDatabase,&newPlanet);
+
+		char *newstrbuffer[100];
+		sprintf_s(newstrbuffer, 100, "[CLIENT] Added '%s' to local database", newPlanet->name);
+		SendMessage(feedbackHandle, LB_ADDSTRING, NULL, newstrbuffer);
+		SendMessage(databaselistHandle, LB_ADDSTRING, NULL, newPlanet->name);
+
+		newPlanet = NULL;
+
+		Sleep(50);
+	}
+	ReleaseMutex(databaseMutex);
+
+	char txtbuffer[100];
+	sprintf_s(txtbuffer, 100, "[CLIENT] %d bytes read from file", totalBytes);
+	SendMessage(feedbackHandle, LB_ADDSTRING, NULL, txtbuffer);
+
+	CloseHandle(fileHandle);
+
 }
 
 void savePlanetFile(void) {
-	HANDLE fileHandle = OpenFileDialog("planet", NULL, CREATE_ALWAYS);
+	HWND feedbackHandle = GetDlgItem(feedbackDLG, IDC_FEEDBACKLIST);
+	HWND databaselistHandle = GetDlgItem(databaseDLG, IDC_PLANETLIST);
+	HWND alivelistHandle = GetDlgItem(databaseDLG, IDC_ALIVELIST);
+
+	HANDLE databaseMutex = CreateMutex(NULL, FALSE, "accessToDatabase");
+
+	HANDLE fileHandle = OpenFileDialog("Save Planet", GENERIC_WRITE, CREATE_ALWAYS);
+
+	if (fileHandle == INVALID_HANDLE_VALUE)return;
+
+	planet_type *planetToSend;
+
+	int *selItemsArray = (int*)malloc(sizeof(int) * 10);
+	//Count number of selected items in list
+	int numSelItems = SendMessage(databaselistHandle, LB_GETSELCOUNT, 0, 0);
+	//Write selected items index# to an array
+	int cSelItemsInBuffer = SendMessage(databaselistHandle, LB_GETSELITEMS, 10, (LPARAM)selItemsArray);
+
+	int totalBytes = 0;
+	char *nameOfPlanet;
+
+	WaitForSingleObject(databaseMutex, INFINITE);
+	for (int i = 0; i < numSelItems; i++) {
+
+		nameOfPlanet = (char*)malloc(sizeof(char) * 20);
+		SendMessage(databaselistHandle, LB_GETTEXT, selItemsArray[i], nameOfPlanet);
+		planetToSend = findPlanet(planetDatabase, nameOfPlanet);
+
+		int bytesWritten;
+		WriteFile(fileHandle, planetToSend, sizeof(planet_type), &bytesWritten, NULL);
+
+		totalBytes = totalBytes + bytesWritten;
+
+		free(nameOfPlanet);
+
+		Sleep(50);
+	}
+	ReleaseMutex(databaseMutex);
+
+	char txtbuffer[100];
+	sprintf_s(txtbuffer, 100, "[CLIENT] %d bytes written to file", totalBytes);
+	SendMessage(feedbackHandle, LB_ADDSTRING, NULL, txtbuffer);
+
+	CloseHandle(fileHandle);
 }

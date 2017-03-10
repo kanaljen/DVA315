@@ -184,7 +184,7 @@ DWORD WINAPI mailThread(LPARAM arg) {
 				//Start msg-send
 				sprintf_s(msg->msg, 100, "[SERVER] Planet '%s' as left the area, but planet could NOT be removed!", buffer->name);
 				sprintf_s(msg->name, 20, "%s", buffer->name);
-				msg->type = -1;
+				msg->type = 0;
 				mailslotWrite(clientMailslot, msg, sizeof(feedback_type));
 				//End msg-send
 			}
@@ -193,7 +193,7 @@ DWORD WINAPI mailThread(LPARAM arg) {
 				//Start msg-send
 				sprintf_s(msg->msg, 100, "[SERVER] Planet '%s' as left the area, and planet has been removed!", buffer->name);
 				sprintf_s(msg->name, 20, "%s", buffer->name);
-				msg->type = -1;
+				msg->type = 0;
 				mailslotWrite(clientMailslot, msg, sizeof(feedback_type));
 				//End msg-send
 			}

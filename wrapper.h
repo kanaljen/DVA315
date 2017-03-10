@@ -39,7 +39,7 @@ typedef struct pt {
 
 typedef struct serverFeedback {
 	char		name[20];	// Name of planet
-	int			type;		// Type of return: -1 left area, 0 planet expired, 1 only messege
+	int			type;		// Type of return: 0 planet id dead, 1 only messege
 	char		msg[100];	// Messege
 } feedback_type;
 
